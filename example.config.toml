@@ -2,6 +2,7 @@ first_name = "John"
 last_name = "Doe"
 email_name = "example"
 email_domain = "gmail.com"
+password = "password"
 address = "303 2nd St, Suite 800 San Francisco"
 quantity = 5
 headless = true
