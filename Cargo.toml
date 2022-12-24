@@ -1,0 +1,16 @@
+[package]
+name = "headless"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+selenium-manager = { git = "https://github.com/SeleniumHQ/selenium", branch = "trunk" }
+thirtyfour = "0.31.0"
+rand = "0.8.5"
+tokio = "1.23.0"
+config = { version = "0.13.3", features = ["toml"] }
+serde = { version = "1.0.151", features = ["derive"] }
+tracing-subscriber = "0.3.16"
+tracing = "0.1.37"
+anyhow = "1.0.68"
