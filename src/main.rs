@@ -1,9 +1,7 @@
 use anyhow::Result;
 use config::Config;
-use rand::distributions::Uniform;
-use rand::{thread_rng, Rng};
-use selenium_manager::get_manager_by_browser;
-use selenium_manager::{get_manager_by_driver, SeleniumManager};
+use rand::{distributions::Uniform, thread_rng, Rng};
+use selenium_manager::{get_manager_by_browser, get_manager_by_driver, SeleniumManager};
 use serde::Deserialize;
 use std::{process::exit, time::Instant};
 
