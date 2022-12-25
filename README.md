@@ -10,7 +10,7 @@ Automatically creates DoorDash accounts with given details.
 
 ## Configure
 
-The tool can be configured in the included `config.toml` file. Most items are required.
+The tool can be configured in the included `config.toml` file. Most items are required. For a full list of config options, see `example.config.toml`.
 
 ```toml
 first_name = "John"
@@ -20,5 +20,6 @@ email_domain = "gmail.com"
 password = "password"
 address = "303 2nd St, Suite 800 San Francisco"
 quantity = 5
+save_to_file = true
 headless = true
 ```

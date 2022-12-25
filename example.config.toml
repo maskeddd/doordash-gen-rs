@@ -5,4 +5,6 @@ email_domain = "gmail.com"
 password = "password"
 address = "303 2nd St, Suite 800 San Francisco"
 quantity = 5
+save_to_file = true
 headless = true
+chromedriver_port = 5000

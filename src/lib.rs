@@ -3,8 +3,10 @@ use config::Config;
 use rand::{distributions::Uniform, thread_rng, Rng};
 use selenium_manager::get_manager_by_driver;
 use serde::Deserialize;
-use std::{process::Child, time::Instant};
+use std::{fs, io::Write, path::PathBuf, process::Child, time::Instant};
 
+use anyhow::anyhow;
+use chrono::{DateTime, Local};
 use thirtyfour::{prelude::*, ChromeCapabilities};
 use tracing::{error, info};
 
@@ -12,7 +14,7 @@ const DOORDASH_URL: &str = "https://identity.doordash.com/auth/user/signup?clien
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36";
 
 #[derive(Debug, Deserialize, Default)]
-struct Configuration {
+pub struct Configuration {
     first_name: String,
     last_name: String,
     email_name: String,
@@ -20,7 +22,8 @@ struct Configuration {
     address: String,
     #[serde(default = "generate_password")]
     password: String,
-    quantity: Option<i32>,
+    quantity: Option<u32>,
+    pub save_to_file: Option<bool>,
     headless: Option<bool>,
     #[serde(default = "default_port")]
     chromedriver_port: i32,
@@ -28,8 +31,15 @@ struct Configuration {
 
 #[derive(Default)]
 pub struct AccountGenerator {
-    config: Configuration,
+    pub config: Configuration,
+    pub accounts: Vec<Account>,
     caps: ChromeCapabilities,
+}
+
+pub struct Account {
+    pub email: String,
+    pub password: String,
+    pub created: DateTime<Local>,
 }
 
 impl AccountGenerator {
@@ -49,9 +59,7 @@ impl AccountGenerator {
     }
 
     #[tokio::main]
-    pub async fn run(&self) -> Result<()> {
-        let start = Instant::now();
-
+    pub async fn run(&mut self) -> Result<()> {
         info!("Starting chromedriver...");
         let driver_path = tokio::task::spawn_blocking(Self::get_driver_path).await??;
         let mut chromedriver = self.run_chromedriver(driver_path)?;
@@ -64,7 +72,10 @@ impl AccountGenerator {
         let quantity = self.config.quantity.unwrap_or(1);
 
         for i in 0..quantity {
+            let start = Instant::now();
+
             info!("Creating account {} of {}...", i + 1, quantity);
+
             let driver = WebDriver::new(
                 format!("http://localhost:{}", self.config.chromedriver_port).as_str(),
                 self.caps.clone(),
@@ -74,12 +85,16 @@ impl AccountGenerator {
             let result = self.automate_signup(&driver).await;
 
             match result {
-                Ok((email, password)) => info!(
-                    "Account generated successfully: {}:{}. Took {:?}s",
-                    email,
-                    password,
-                    start.elapsed().as_secs_f32()
-                ),
+                Ok(account) => {
+                    info!(
+                        "Account generated successfully: {}:{}. Took {:?}s",
+                        account.email,
+                        account.password,
+                        start.elapsed().as_secs_f32()
+                    );
+
+                    self.accounts.push(account);
+                }
                 Err(err) => error!("Failed to generate account: {}", err),
             };
 
@@ -90,6 +105,29 @@ impl AccountGenerator {
         chromedriver.kill()?;
 
         Ok(())
+    }
+
+    pub fn save_to_file(&self, output_path: Option<&str>) -> Result<String> {
+        if self.accounts.is_empty() {
+            return Err(anyhow!("No accounts generated!"));
+        }
+
+        let file_name = Local::now().format("%d-%m-%Y").to_string();
+        let mut path = PathBuf::from(output_path.unwrap_or("./"));
+        path.push(file_name);
+        path.set_extension("txt");
+
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .append(true)
+            .open(path.clone())?;
+
+        for account in &self.accounts {
+            writeln!(file, "{}:{}", account.email, account.password)?;
+        }
+
+        Ok(path.as_os_str().to_str().unwrap().to_string())
     }
 
     fn load_config(path: &str) -> Result<Configuration> {
@@ -138,7 +176,7 @@ impl AccountGenerator {
         Ok(caps)
     }
 
-    async fn automate_signup(&self, driver: &WebDriver) -> Result<(String, String)> {
+    async fn automate_signup(&self, driver: &WebDriver) -> Result<Account> {
         driver.goto(DOORDASH_URL).await?;
 
         // First name
@@ -227,7 +265,11 @@ impl AccountGenerator {
             .click()
             .await?;
 
-        Ok((email, self.config.password.clone()))
+        Ok(Account {
+            email,
+            password: self.config.password.clone(),
+            created: Local::now(),
+        })
     }
 }
 
